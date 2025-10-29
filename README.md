@@ -7,4 +7,3 @@
 - Detetor de fumo
 - Sensor de qualidade do ar (gás)
 - Sensor de temperatura
-- 
