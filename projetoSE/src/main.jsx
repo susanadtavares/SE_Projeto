@@ -13,6 +13,7 @@ createRoot(document.getElementById("root")).render(
           <Route path="/" element={<Dashboard />} />
           <Route path="/sensors" element={<div className="card" style={{padding:16}}>Lista de sensores</div>} />
           <Route path="/settings" element={<div className="card" style={{padding:16}}>Definições</div>} />
+          <Route path="/reports" element={<div className="card" style={{padding:16}}>Relatórios</div>} />
         </Routes>
       </DashboardLayout>
     </BrowserRouter>

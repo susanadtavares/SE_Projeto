@@ -7,6 +7,7 @@ export default function Sidebar() {
       <nav>
         <NavLink to="/" end className={({isActive}) => isActive ? "active" : ""}>Dashboard</NavLink>
         <NavLink to="/sensors" className={({isActive}) => isActive ? "active" : ""}>Sensores</NavLink>
+        <NavLink to="/reports" className={({isActive}) => isActive ? "active" : ""}>Relatórios</NavLink>
       </nav>
     </aside>
   );
