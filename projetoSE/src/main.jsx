@@ -1,10 +1,24 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import DashboardLayout from "./layouts/DashboardLayout";
+import Dashboard from "./pages/Dashboard";
+import "./styles/black-dashboard.css"; // o teu CSS dark
+import 'bootstrap/dist/css/bootstrap.min.css';
 
-createRoot(document.getElementById('root')).render(
+createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
-  </StrictMode>,
-)
+    <BrowserRouter>
+      <DashboardLayout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/sensors" element={<div className="card" style={{padding:16}}>Lista de sensores</div>} />
+          <Route path="/settings" element={<div className="card" style={{padding:16}}>Definições</div>} />
+          <Route path="/reports" element={<div className="card" style={{padding:16}}>Relatórios</div>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </DashboardLayout>
+    </BrowserRouter>
+  </StrictMode>
+);
+

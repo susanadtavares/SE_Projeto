@@ -1,0 +1,109 @@
+/* === Black Dashboard CSS version === */
+
+/* cores base */
+:root {
+  --bd-bg: #1e1e2f;
+  --bd-card: #27293d;
+  --bd-accent: #e14eca;
+  --bd-text: #ffffffcc;
+}
+
+/* fundo geral */
+html, body, #root {
+  height: 100%;
+  background: var(--bd-bg);
+  color: var(--bd-text);
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  margin: 0;
+}
+
+/* layout principal */
+.main {
+  margin-left: 240px;
+  min-height: 100%;
+  padding: 1.25rem 1.25rem 3rem;
+}
+
+/* === Sidebar === */
+.sidebar {
+  width: 240px;
+  background: #1a1c2b;
+  position: fixed;
+  inset: 0 auto 0 0;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.sidebar h4 {
+  color: #fff;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.sidebar a {
+  color: #adb5bd;
+  text-decoration: none;
+  display: block;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.5rem;
+  transition: background 0.2s, color 0.2s;
+}
+
+.sidebar a.active,
+.sidebar a:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+/* === Navbar === */
+.navbar {
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(4px);
+  margin-bottom: 1.5rem;
+}
+
+.navbar-brand {
+  color: #fff !important;
+}
+
+/* === Card === */
+.card {
+  background: var(--bd-card);
+  border: none;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  padding: 1rem;
+  color: var(--bd-text);
+}
+
+.card-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+/* === Botão === */
+.btn-accent {
+  background: var(--bd-accent);
+  border: none;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-accent:hover {
+  opacity: 0.85;
+}
+
+/* === Utilidades === */
+h1, h2, h3, h4, h5, h6 {
+  color: #fff;
+}
+
+a {
+  color: var(--bd-accent);
+}
