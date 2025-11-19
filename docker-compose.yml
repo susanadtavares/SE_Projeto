@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    container_name: mosquitto_SE
+    restart: always
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto:/mosquitto/config
+
+  backend:
+    build: ./server
+    container_name: backend
+    restart: always
+    ports:
+      - "3001:3001"
+    depends_on:
+      - mosquitto
+    environment:
+      - PORT=3001
+      - MQTT_URL=mqtt://mosquitto:1883
+      - MQTT_TOPIC=sala/ambiente
+
+  frontend:
+    build: ./projetoSE
+    container_name: frontend
+    restart: always
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
