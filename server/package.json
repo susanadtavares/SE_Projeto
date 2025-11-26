@@ -2,10 +2,10 @@
   "name": "server",
   "version": "1.0.0",
   "description": "Backend IoT (Express + MQTT) para Dashboard Ambiental",
-  "main": "index.js",
+  "main": "src/server.js",
   "type": "module",
   "scripts": {
-    "dev": "node index.js"
+    "dev": "node src/server.js"
   },
   "author": "",
   "license": "ISC",
