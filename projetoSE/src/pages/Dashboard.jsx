@@ -18,7 +18,7 @@ ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip,
 
 const MAX_POINTS = 60;
 const BASE_URL = import.meta?.env?.VITE_API_URL ?? "http://localhost:3001";
-const ENDPOINT = `${BASE_URL}/api/readings/last`;
+const ENDPOINT = `${BASE_URL}/api/last`;
 const POLL_MS = 1000; // intervalo base
 
 // Helpers de status
