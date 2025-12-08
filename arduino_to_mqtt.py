@@ -1,40 +1,32 @@
-from serial import Serial
+import serial
 import time
 import json
 import paho.mqtt.client as mqtt
 
 # Configuração Serial (Arduino)
-SERIAL_PORT = "/dev/ttyACM0"  # No Windows será algo como "COM3", "COM4", etc.
+SERIAL_PORT = "COM5"  # MUDA ISTO! (COM3, COM4, COM5, etc.)
 BAUD_RATE = 9600
 
 # Configuração MQTT
-MQTT_BROKER = "localhost"  # Endereço do Mosquitto
+MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
 MQTT_TOPIC = "sala/ambiente"
 
 # Conectar ao Arduino
-print("🔌 Conectando ao Arduino...")
-arduino = Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+print("Conectando ao Arduino...")
+arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
 time.sleep(2)  # Aguardar inicialização do Arduino
 
 # Conectar ao MQTT
-print("📡 Conectando ao MQTT...")
-client = mqtt.Client()
+print("Conectando ao MQTT...")
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 client.connect(MQTT_BROKER, MQTT_PORT, 60)
-print("✅ Conectado ao MQTT!")
+print("Conectado ao MQTT!")
 
 def processar_dados(linha):
-    """
-    Processa a linha recebida do Arduino e extrai os valores.
-    Adapta esta função conforme o formato que o teu Arduino envia!
-    
-    Exemplos de formato esperado:
-    - "temp:23.5,hum:45.2,aqi:38"
-    - "23.5,45.2,38"
-    - Já em JSON: {"temp":23.5,"hum":45.2,"aqi":38}
-    """
+    """Processa a linha recebida do Arduino"""
     try:
-        # Se o Arduino já envia JSON, só faz parse
+        # Se o Arduino já envia JSON
         if linha.startswith("{"):
             return json.loads(linha)
         
@@ -47,55 +39,40 @@ def processar_dados(linha):
                 dados[chave.strip()] = float(valor.strip())
             return dados
         
-        # Se for formato simples "23.5,45.2,38" (temp, hum, aqi)
-        if "," in linha:
-            valores = linha.split(",")
-            if len(valores) >= 3:
-                return {
-                    "temp": float(valores[0].strip()),
-                    "hum": float(valores[1].strip()),
-                    "aqi": int(valores[2].strip())
-                }
-        
         return None
         
     except Exception as e:
-        print(f"❌ Erro ao processar: {linha} - {e}")
+        print(f"Erro ao processar: {linha} - {e}")
         return None
 
-print("🎯 A aguardar dados do Arduino...\n")
+print("A aguardar dados do Arduino...\n")
 
 # Loop principal
 while True:
     try:
         if arduino.in_waiting:
-            # Ler linha do Arduino
             linha = arduino.readline().decode(errors="ignore").strip()
             
             if linha:
-                print(f"📥 Recebido: {linha}")
+                print(f"Recebido: {linha}")
                 
-                # Processar dados
                 dados = processar_dados(linha)
                 
                 if dados:
-                    # Publicar no MQTT
                     payload = json.dumps(dados)
                     client.publish(MQTT_TOPIC, payload)
-                    print(f"📤 Enviado para MQTT: {payload}\n")
-                else:
-                    print(f"⚠️  Formato não reconhecido, ignorando...\n")
+                    print(f"Enviado para MQTT: {payload}\n")
         
         time.sleep(0.1)
         
     except KeyboardInterrupt:
-        print("\n🛑 Parando...")
+        print("\nParando...")
         break
     except Exception as e:
-        print(f"❌ Erro: {e}")
+        print(f"Erro: {e}")
         time.sleep(1)
 
 # Limpar conexões
 arduino.close()
 client.disconnect()
-print("👋 Desconectado!")
+print("Desconectado!")

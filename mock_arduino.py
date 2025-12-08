@@ -13,7 +13,8 @@ time.sleep(1)
 
 # Conectar ao MQTT
 print("📡 Conectando ao MQTT...")
-client = mqtt.Client()
+# Usar CallbackAPIVersion.VERSION2 para evitar warnings em versões recentes do paho-mqtt
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 client.connect(MQTT_BROKER, MQTT_PORT, 60)
 print("✅ Conectado ao MQTT!")
 
