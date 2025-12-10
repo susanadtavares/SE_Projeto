@@ -1,22 +1,29 @@
-export default function SensorCard({ title, value, unit, status }) {
+export default function SensorCard({ title, value, unit, status, icon, color }) {
   return (
-    <div className="card">
-      <div className="card-title">{title}</div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ fontSize: 36, fontWeight: 700 }}>{value ?? "--"}</span>
-        <span style={{ opacity: .8 }}>{unit}</span>
-      </div>
-      {status && (
-        <div style={{
-          marginTop: 8,
-          display: "inline-block",
-          padding: "4px 8px",
-          borderRadius: 8,
-          background: "rgba(255,255,255,0.08)"
-        }}>
-          {status}
+    <div className="card card-stats">
+      <div className="card-body">
+        <div className="row">
+          <div className="col-5">
+            <div className="info-icon text-center icon-warning">
+              <i className={`${icon} ${color}`} style={{fontSize: "2.5rem"}}></i>
+            </div>
+          </div>
+          <div className="col-7">
+            <div className="numbers">
+              <p className="card-category">{title}</p>
+              <h3 className="card-title">
+                {value ?? "--"} <small>{unit}</small>
+              </h3>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
+      <div className="card-footer">
+        <hr />
+        <div className="stats">
+          <i className="tim-icons icon-sound-wave" /> {status || "Atualizado agora"}
+        </div>
+      </div>
     </div>
   );
 }

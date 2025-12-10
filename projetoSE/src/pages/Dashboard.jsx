@@ -18,7 +18,7 @@ ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip,
 
 const MAX_POINTS = 60;
 const BASE_URL = import.meta?.env?.VITE_API_URL ?? "http://localhost:3001";
-const ENDPOINT = `${BASE_URL}/api/last`;
+const ENDPOINT = `${BASE_URL}/api/readings/last`;
 const POLL_MS = 1000; // intervalo base
 
 // Helpers de status
@@ -81,7 +81,16 @@ export default function Dashboard() {
         const ctrl = new AbortController();
         abortRef.current = ctrl;
 
-        const res = await fetch(ENDPOINT, { mode: "cors", signal: ctrl.signal });
+        // Obter token do localStorage (já vem como string JSON)
+        const token = localStorage.getItem("token");
+
+        const res = await fetch(ENDPOINT, { 
+          mode: "cors", 
+          signal: ctrl.signal,
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
 
         if (res.status === 204) throw new Error("sem dados");
         if (!res.ok) throw new Error(`erro http ${res.status}`);
@@ -162,9 +171,8 @@ export default function Dashboard() {
           pointRadius: 0,
           tension: 0.35,
           fill: true,
-          // usa cor por CSS variable se tiveres (fallbacks incluidos)
-          borderColor: "var(--chart-temp, #f97316)",
-          backgroundColor: "var(--chart-temp-bg, rgba(249, 115, 22, .12))",
+          borderColor: "#ff3d00",
+          backgroundColor: "rgba(255, 61, 0, 0.1)",
         },
         {
           label: "Humidade (%)",
@@ -173,8 +181,8 @@ export default function Dashboard() {
           pointRadius: 0,
           tension: 0.35,
           fill: true,
-          borderColor: "var(--chart-hum, #22d3ee)",
-          backgroundColor: "var(--chart-hum-bg, rgba(34, 211, 238, .12))",
+          borderColor: "#ff9100",
+          backgroundColor: "rgba(255, 145, 0, 0.1)",
         },
         {
           label: "AQI",
@@ -184,7 +192,7 @@ export default function Dashboard() {
           tension: 0.35,
           yAxisID: "y2",
           fill: false,
-          borderColor: "var(--chart-aqi, #a78bfa)",
+          borderColor: "#ff3d00",
         },
       ],
     };
@@ -204,7 +212,7 @@ export default function Dashboard() {
           padding: { bottom: 8 },
         },
         legend: {
-          labels: { color: "#fff", usePointStyle: true, boxWidth: 8 },
+          labels: { color: "#9a9a9a", usePointStyle: true, boxWidth: 8 },
         },
         tooltip: { enabled: true },
         decimation: {
@@ -215,19 +223,19 @@ export default function Dashboard() {
       },
       scales: {
         x: {
-          ticks: { color: "#c9c9d1", maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+          ticks: { color: "#9a9a9a", maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
           grid: { color: "rgba(255,255,255,.06)" },
         },
         y: {
-          ticks: { color: "#c9c9d1" },
+          ticks: { color: "#9a9a9a" },
           grid: { color: "rgba(255,255,255,.06)" },
-          title: { display: true, text: "°C / %", color: "#c9c9d1" },
+          title: { display: true, text: "°C / %", color: "#9a9a9a" },
         },
         y2: {
           position: "right",
-          ticks: { color: "#c9c9d1" },
+          ticks: { color: "#9a9a9a" },
           grid: { drawOnChartArea: false },
-          title: { display: true, text: "AQI", color: "#c9c9d1" },
+          title: { display: true, text: "AQI", color: "#9a9a9a" },
         },
       },
     }),
@@ -235,33 +243,68 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="grid" style={{ display: "grid", gap: 16 }}>
-      <h1>Dashboard Ambiental</h1>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16 }}>
-        <SensorCard
-          title="Temperatura"
-          value={Number.isFinite(reading?.temp) ? reading.temp.toFixed(1) : "--"
-          }
-          unit="°C"
-          status={statusTemp(reading?.temp)}
-        />
-        <SensorCard
-          title="Humidade"
-          value={Number.isFinite(reading?.hum) ? reading.hum.toFixed(0) : "--"}
-          unit="%"
-          status={statusHum(reading?.hum)}
-        />
-        <SensorCard
-          title="Qualidade do Ar (AQI)"
-          value={Number.isFinite(reading?.aqi) ? reading.aqi : "--"}
-          unit=""
-          status={statusAQI(reading?.aqi)}
-        />
+    <div className="content">
+      <div className="row">
+        <div className="col-12">
+          <div className="card card-chart">
+            <div className="card-header">
+              <div className="row">
+                <div className="col-sm-6 text-left">
+                  <h5 className="card-category">Visão Geral</h5>
+                  <h2 className="card-title">Dashboard Ambiental</h2>
+                </div>
+              </div>
+            </div>
+            <div className="card-body">
+              <div className="chart-area" style={{ height: "350px" }}>
+                <Line data={chartData} options={options} />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="card" style={{ padding: 16, height: 360 }}>
-        <Line data={chartData} options={options} />
+      <div className="row">
+        <div className="col-lg-3">
+          <SensorCard
+            title="Temperatura"
+            value={Number.isFinite(reading?.temp) ? reading.temp.toFixed(1) : "--"}
+            unit="°C"
+            status={statusTemp(reading?.temp)}
+            icon="tim-icons icon-thermometer-25"
+            color="text-warning"
+          />
+        </div>
+        <div className="col-lg-3">
+          <SensorCard
+            title="Humidade"
+            value={Number.isFinite(reading?.hum) ? reading.hum.toFixed(0) : "--"}
+            unit="%"
+            status={statusHum(reading?.hum)}
+            icon="tim-icons icon-shape-star"
+            color="text-info"
+          />
+        </div>
+        <div className="col-lg-3">
+          <SensorCard
+            title="Qualidade do Ar"
+            value={Number.isFinite(reading?.aqi) ? reading.aqi : "--"}
+            unit="AQI"
+            status={statusAQI(reading?.aqi)}
+            icon="tim-icons icon-molecule-40"
+            color="text-success"
+          />
+        </div>
+        <div className="col-lg-3">
+          <SensorCard
+            title="Risco de Incêndio"
+            value={reading?.fireDanger ? "PERIGO" : "Seguro"}
+            unit=""
+            status={reading?.fire === 1 ? "Fogo detetado (Câmara)" : "Sem deteção (Câmara)"}
+            icon="tim-icons icon-alert-circle-exc"
+            color={reading?.fireDanger ? "text-danger" : "text-success"}
+          />
+        </div>
       </div>
     </div>
   );

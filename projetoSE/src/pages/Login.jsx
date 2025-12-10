@@ -1,71 +1,83 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import "../styles/Login.css";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
 
-    // login básico (podes trocar por API depois)
-    if (user === "admin" && pass === "1234") {
-      localStorage.setItem("auth", "true");
+    try {
+      const res = await fetch("http://localhost:3001/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Falha no login");
+      }
+
+      // Guardar dados no localStorage
+      localStorage.setItem("user", JSON.stringify({
+        id: data.id,
+        email: data.email,
+        role: data.role
+      }));
+
       navigate("/");
-    } else {
-      setError("Credenciais inválidas");
+    } catch (err) {
+      setError(err.message);
     }
   };
 
   return (
-    <div style={{
-      height: "100vh",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      background: "#1e1e2f",
-      color: "white"
-    }}>
-      <form 
-        onSubmit={handleLogin} 
-        style={{
-          width: 320,
-          background: "#27293d",
-          padding: 30,
-          borderRadius: 12,
-          boxShadow: "0 4px 10px rgba(0,0,0,0.4)"
-        }}
-      >
-        <h2 style={{textAlign: "center", marginBottom: 20}}>Login</h2>
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <h2 className="login-title">Bem-vindo</h2>
+          <p className="login-subtitle">Dashboard Ambiental IoT</p>
+        </div>
 
-        <label>Utilizador</label>
-        <input 
-          type="text"
-          className="form-control mb-3"
-          value={user}
-          onChange={(e) => setUser(e.target.value)}
-        />
+        <form onSubmit={handleLogin}>
+          {error && <div className="error-msg">{error}</div>}
 
-        <label>Password</label>
-        <input 
-          type="password"
-          className="form-control mb-3"
-          value={pass}
-          onChange={(e) => setPass(e.target.value)}
-        />
+          <div className="form-group">
+            <label className="form-label">Email</label>
+            <input 
+              type="email"
+              className="form-input"
+              placeholder="exemplo@iot.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-        {error && <p style={{ color: "red", fontSize: 14 }}>{error}</p>}
+          <div className="form-group">
+            <label className="form-label">Password</label>
+            <input 
+              type="password"
+              className="form-input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-        <button 
-          type="submit"
-          className="btn btn-primary w-100"
-          style={{marginTop: 10, background: "#e14eca", border: "none"}}
-        >
-          Entrar
-        </button>
-      </form>
+          <button type="submit" className="login-btn">
+            Entrar
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

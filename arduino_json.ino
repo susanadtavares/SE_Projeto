@@ -1,103 +1,117 @@
-// ========================
-//     BIBLIOTECAS
-// ========================
 #include <DHT.h>
-#include <MQUnifiedsensor.h>
+#include <DHT_U.h>
+#include <Arduino.h>
 
-// ========================
-//     DHT22
-// ========================
-#define DHTPIN 2
+#define DHTPIN 10
 #define DHTTYPE DHT22
+#define MQ135_PIN A0
+
+int ledVermelho = 11;
+int ledAmarelo = 12;
+int ledVerde = 13;
+
+String estado = "seguro";
+String estadoDht = "seguro";
+String estadoMq = "seguro";
+
 DHT dht(DHTPIN, DHTTYPE);
 
-// ========================
-//     MQ-2 (MQUnifiedsensor)
-// ========================
-#define BOARD "Arduino UNO"
-#define MQ_PIN A0
-#define VOLT_RES 5.0
-#define ADC_RES_BITS 10
-#define RATIO_CLEAN_AIR 9.83
+float humidityVal;
+float tempValC;
+float heatIndexC;
+int gasValue;
+int baseValue = 0;
 
-MQUnifiedsensor MQ2(BOARD, VOLT_RES, ADC_RES_BITS, MQ_PIN, "MQ-2");
+float maxTemp = 23;
+float maxCo = 600;
 
-float r0 = 0;
-
-// ========================
-//     SETUP
-// ========================
 void setup() {
   Serial.begin(9600);
-  Serial.println("===== INICIAR SENSORES =====");
-
-  // ---- DHT22 ----
-  Serial.println("Inicializando DHT22...");
   dht.begin();
+  delay(1500); // tempo para o DHT22 estabilizar
 
-  // ---- MQ-2 ----
-  Serial.println("MQ-2: inicializacao");
-  MQ2.setRegressionMethod(1);  // método linear
-  MQ2.setA(36974);             // CO curve
-  MQ2.setB(-3.109);
-  MQ2.init();
+  pinMode(ledVermelho, OUTPUT);
+  pinMode(ledAmarelo, OUTPUT);
+  pinMode(ledVerde, OUTPUT);
+  pinMode(MQ135_PIN, INPUT);
 
-  // Aquecimento
-  Serial.print("A aquecer MQ-2 (30 s)...");
-  for (int i = 0; i < 30; i++) {
-    MQ2.update();
-    delay(1000);
-  }
-  Serial.println(" ok");
+  Serial.println("Calibrar MQ135 (aguardar 5 segundos com ar limpo)...");
 
-  // Calibração
-  Serial.print("A calibrar R0...");
-  int n = 10;
-  for (int i = 0; i < n; i++) {
-    MQ2.update();
-    r0 += MQ2.calibrate(RATIO_CLEAN_AIR);
-    delay(200);
-  }
-  r0 /= n;
-  MQ2.setR0(r0);
-
-  Serial.print(" R0 = ");
-  Serial.println(r0, 2);
-
-  if (isinf(r0) || r0 <= 0) {
-    Serial.println("ERRO: R0 invalido. Verifica ligacoes do MQ-2.");
-    while (1);
+  long soma = 0;
+  for (int i = 0; i < 50; i++) {
+    int leitura = analogRead(MQ135_PIN);
+    soma += leitura;
+    Serial.print("Leitura calibracao: ");
+    Serial.println(leitura);
+    delay(100);
   }
 
-  Serial.println("Sensores prontos!");
-  Serial.println("============================");
+  baseValue = soma / 50;
+
+  Serial.print("Calibração concluída. Valor base: ");
+  Serial.println(baseValue);
+  delay(1000);
 }
 
-// ========================
-//     LOOP
-// ========================
 void loop() {
 
-  // ---- Ler DHT22 ----
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
+  // ======== LEITURA DO DHT22 COM VERIFICAÇÃO ========
+  humidityVal = dht.readHumidity();
+  tempValC = dht.readTemperature();
 
-  if (isnan(h) || isnan(t)) {
-    Serial.println("ERRO: Falha ao ler DHT22!");
+  if (isnan(humidityVal) || isnan(tempValC)) {
+    Serial.println("Falha ao ler DHT22! Ignorando leitura...");
+    delay(2000);
+    return;
   }
 
-  // ---- Ler MQ-2 ----
-  MQ2.update();
-  float co_ppm = MQ2.readSensor();
+  heatIndexC = dht.computeHeatIndex(tempValC, humidityVal, false);
 
-  // ---- ENVIAR JSON para Python/MQTT ----
-  Serial.print("{\"temp\":");
-  Serial.print(isnan(t) ? 0.0 : t, 2);
-  Serial.print(",\"hum\":");
-  Serial.print(isnan(h) ? 0.0 : h, 2);
-  Serial.print(",\"aqi\":");
-  Serial.print((isnan(co_ppm) || isinf(co_ppm)) ? 0 : (int)co_ppm);
-  Serial.println("}");
+  // ======== MQ135 / CO2 ========
+  gasValue = analogRead(MQ135_PIN);
+  int delta = gasValue - baseValue;
+  if (delta < 0) delta = 0;
 
-  delay(2000);
+  float co2ppm = 400 + (delta * 3.5);
+
+  // ======== SERIAL DEBUG ========
+  Serial.print("Temp: ");
+  Serial.print(tempValC);
+  Serial.print(" °C | Hum: ");
+  Serial.print(humidityVal);
+  Serial.print(" % | MQ135: ");
+  Serial.print(gasValue);
+  Serial.print(" | CO₂ estimado: ");
+  Serial.println(co2ppm);
+
+  // ======== ESTADOS ========
+  estadoMq = (co2ppm < maxCo) ? "seguro" : "alerta";
+  estadoDht = (tempValC < maxTemp) ? "seguro" : "alerta";
+
+  if (estadoMq == "alerta" && estadoDht == "alerta")
+    estado = "perigo";
+  else if (estadoMq == "alerta" || estadoDht == "alerta")
+    estado = "alerta";
+  else
+    estado = "seguro";
+
+  // ======== LEDS ========
+  if (estado == "seguro") {
+    digitalWrite(ledVerde, HIGH);
+    digitalWrite(ledAmarelo, LOW);
+    digitalWrite(ledVermelho, LOW);
+  } else if (estado == "alerta") {
+    digitalWrite(ledVerde, LOW);
+    digitalWrite(ledAmarelo, HIGH);
+    digitalWrite(ledVermelho, LOW);
+  } else { 
+    // PERIGO
+    digitalWrite(ledVerde, LOW);
+    digitalWrite(ledAmarelo, LOW);
+    digitalWrite(ledVermelho, HIGH);
+    delay(150);
+    digitalWrite(ledVermelho, LOW);
+  }
+
+  delay(2000); // DHT22 NÃO SUPORTA LEITURAS MAIS RÁPIDAS QUE ISSO
 }

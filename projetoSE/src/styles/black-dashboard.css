@@ -4,7 +4,7 @@
 :root {
   --bd-bg: #1e1e2f;
   --bd-card: #27293d;
-  --bd-accent: #e14eca;
+  --bd-accent: #ff3d00; /* Laranja Fogo */
   --bd-text: #ffffffcc;
 }
 
@@ -18,42 +18,20 @@ html, body, #root {
 }
 
 /* layout principal */
+.wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
 .main {
-  margin-left: 240px;
+  flex: 1;
   min-height: 100%;
   padding: 1.25rem 1.25rem 3rem;
+  background: var(--bd-bg);
 }
 
 /* === Sidebar === */
-.sidebar {
-  width: 240px;
-  background: #1a1c2b;
-  position: fixed;
-  inset: 0 auto 0 0;
-  padding: 1rem;
-  overflow-y: auto;
-}
-
-.sidebar h4 {
-  color: #fff;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-}
-
-.sidebar a {
-  color: #adb5bd;
-  text-decoration: none;
-  display: block;
-  padding: 0.6rem 0.8rem;
-  border-radius: 0.5rem;
-  transition: background 0.2s, color 0.2s;
-}
-
-.sidebar a.active,
-.sidebar a:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-}
+/* Styles moved to sidebar.css */
 
 /* === Navbar === */
 .navbar {
@@ -69,12 +47,14 @@ html, body, #root {
 
 /* === Card === */
 .card {
-  background: var(--bd-card);
+  background: var(--bd-card) !important;
+  background-color: var(--bd-card) !important;
   border: none;
   border-radius: 0.75rem;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
   padding: 1rem;
-  color: var(--bd-text);
+  color: var(--bd-text) !important;
+  margin-bottom: 20px;
 }
 
 .card-title {
@@ -97,6 +77,77 @@ html, body, #root {
 
 .btn-accent:hover {
   opacity: 0.85;
+}
+
+/* === Tabelas === */
+.table {
+  color: var(--bd-text) !important;
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--bd-text);
+  --bs-table-striped-bg: rgba(255, 255, 255, 0.05);
+  --bs-table-hover-bg: rgba(255, 255, 255, 0.1);
+  background-color: transparent !important;
+  width: 100%;
+  margin-bottom: 1rem;
+  vertical-align: top;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.table > :not(caption) > * > * {
+  background-color: transparent !important;
+  color: var(--bd-text) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none !important;
+}
+
+.table thead th {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+.table td {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--bd-text) !important;
+  padding: 12px 8px;
+  vertical-align: middle;
+}
+
+/* Override Bootstrap text-primary */
+.text-primary {
+  color: var(--bd-accent) !important;
+}
+
+/* === Inputs === */
+.form-control, 
+.form-select,
+select.form-control,
+input.form-control {
+  background: #1e1e2f !important;
+  border: 1px solid #2b3553 !important;
+  color: #fff !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+  background: #1e1e2f !important;
+  border-color: var(--bd-accent) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.form-control::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Fix for select dropdown options */
+.form-control option,
+.form-select option {
+  background-color: #1e1e2f;
+  color: #fff;
 }
 
 /* === Utilidades === */

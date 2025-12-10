@@ -20,7 +20,44 @@ db.exec(`
     aqi INTEGER,
     ts DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS sensors (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    location TEXT,
+    status TEXT DEFAULT 'offline',
+    last_seen DATETIME
+  );
+
+  CREATE TABLE IF NOT EXISTS alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sensor_id TEXT,
+    message TEXT,
+    type TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(sensor_id) REFERENCES sensors(id)
+  );
 `);
+
+// Seed Sensors (Exemplo inicial)
+const sensorCount = db.prepare("SELECT count(*) as count FROM sensors").get();
+if (sensorCount.count === 0) {
+  const stmt = db.prepare("INSERT INTO sensors (id, name, location, status, last_seen) VALUES (?, ?, ?, ?, ?)");
+  stmt.run("sensor_01", "Sensor Sala", "Sala de Estar", "active", new Date().toISOString());
+  stmt.run("sensor_02", "Sensor Cozinha", "Cozinha", "active", new Date().toISOString());
+  stmt.run("sensor_03", "Sensor Quarto", "Quarto Principal", "inactive", new Date(Date.now() - 86400000).toISOString());
+  console.log("[DB] Sensores de exemplo criados.");
+}
+
+// Seed Alerts (Exemplo inicial)
+const alertCount = db.prepare("SELECT count(*) as count FROM alerts").get();
+if (alertCount.count === 0) {
+  const stmt = db.prepare("INSERT INTO alerts (sensor_id, message, type, timestamp) VALUES (?, ?, ?, ?)");
+  stmt.run("sensor_02", "Temperatura elevada detetada (> 50°C)", "critical", new Date().toISOString());
+  stmt.run("sensor_01", "Qualidade do ar moderada", "warning", new Date(Date.now() - 3600000).toISOString());
+  console.log("[DB] Alertas de exemplo criados.");
+}
+
 
 // Inserir admin default
 const admin = db.prepare("SELECT * FROM users WHERE email = ?").get("admin@iot.com");
