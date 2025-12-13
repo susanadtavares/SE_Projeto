@@ -1,42 +1,51 @@
-// simples, guarda tudo em memória
-let last = null;
-let history = [];
+import db from "../db.js";
 
 export function saveReading(data) {
   // data expected: { temp, hum, aqi, fire, ts }
   
   // Add timestamp if missing
-  if (!data.ts) data.ts = new Date();
+  const ts = data.ts ? new Date(data.ts).toISOString() : new Date().toISOString();
+  const { temp, hum, aqi, fire } = data;
 
-  history.push(data);
-  if (history.length > 1000) history.shift();
-
-  // Logic for fire detection
-  // Check last 5 readings for fire === 1 (assuming fire is sent as number 1 or 0)
-  // "a partir de 5 uns diz que tem perigo de fogo"
-  let fireDanger = false;
-  
-  // We need at least 5 readings to determine danger based on the rule
-  if (history.length >= 5) {
-    const last5 = history.slice(-5);
-    // Check if all 5 have fire == 1
-    // We use loose equality or ensure type consistency. Assuming JSON number.
-    const allFire = last5.every(r => Number(r.fire) === 1);
-    if (allFire) {
-      fireDanger = true;
-    }
+  try {
+    // Inserir na BD
+    db.prepare(`
+      INSERT INTO readings (temp, hum, aqi, fire, ts)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(temp, hum, aqi, fire, ts);
+    
+  } catch (err) {
+    console.error("Erro ao guardar leitura:", err);
   }
-  
-  // Update last reading with the calculated danger status
-  // Merge with existing 'last' to preserve data from other sensors if this is a partial update
-  last = { ...(last || {}), ...data, fireDanger };
 }
 
 export function getLast(req, res) {
-  if (!last) return res.status(204).send();
-  res.json(last);
+  try {
+    const last = db.prepare("SELECT * FROM readings ORDER BY ts DESC LIMIT 1").get();
+    
+    if (!last) return res.status(204).send();
+
+    // Recalcular fireDanger
+    const last5 = db.prepare("SELECT fire FROM readings ORDER BY ts DESC LIMIT 5").all();
+    let fireDanger = false;
+    if (last5.length >= 5) {
+      fireDanger = last5.every(r => Number(r.fire) === 1);
+    }
+
+    res.json({ ...last, fireDanger });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao obter última leitura" });
+  }
 }
 
 export function getHistory(req, res) {
-  res.json(history);
+  try {
+    const history = db.prepare("SELECT * FROM readings ORDER BY ts DESC LIMIT 50").all();
+    // Inverter para ordem cronológica (old -> new) para os gráficos
+    res.json(history.reverse());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao obter histórico" });
+  }
 }

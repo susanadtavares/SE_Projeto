@@ -1,5 +1,6 @@
 import db from "../db.js";
 import bcrypt from "bcrypt";
+import { sendMail } from "../services/emailService.js";
 
 export const listUsers = (req, res) => {
   try {
@@ -10,7 +11,7 @@ export const listUsers = (req, res) => {
   }
 };
 
-export const createUser = (req, res) => {
+export const createUser = async (req, res) => {
   const { email } = req.body;
   const role = 'client'; // Forçar criação apenas de clientes
 
@@ -31,8 +32,25 @@ export const createUser = (req, res) => {
 
     const info = db.prepare("INSERT INTO users (email, password, role) VALUES (?, ?, ?)").run(email, hash, role);
     
-    // TODO: Enviar email com a password gerada
-    console.log(`[EMAIL] Para: ${email} | Password: ${generatedPassword}`);
+    // Enviar email com a password gerada
+    console.log(`[EMAIL] A enviar password para: ${email}`);
+    
+    try {
+      await sendMail({
+        to: email,
+        subject: "Bem-vindo ao Dashboard Ambiental",
+        body: `
+          <h1>Bem-vindo!</h1>
+          <p>A sua conta foi criada com sucesso.</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Password:</strong> ${generatedPassword}</p>
+        `
+      });
+      console.log(`[EMAIL] Enviado com sucesso para ${email}`);
+    } catch (emailError) {
+      console.error(`[EMAIL] Falha ao enviar para ${email}:`, emailError);
+      // Não falhamos o request se o email falhar, mas logamos o erro
+    }
 
     // Retornar sucesso (sem a password)
     res.status(201).json({ 

@@ -8,6 +8,7 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("userData");
     navigate("/login");
   };
 

@@ -4,53 +4,37 @@ import numpy as np
 import time
 import supervision as sv
 import base64
-import paho.mqtt.client as mqtt
-import json
-
-# ==========================================
-# CONFIGURAÇÃO MQTT
-# ==========================================
-MQTT_BROKER = "localhost"
-MQTT_PORT = 1883
-MQTT_TOPIC = "sala/ambiente"
-
-# ==========================================
-# CONFIGURAÇÃO CÂMARA E ROBOFLOW
-# ==========================================
-ESP32_URL = "http://172.20.10.5/capture"
+ 
+# URL da ESP32-CAM (endpoint que devolve uma imagem JPEG)
+ESP32_URL = "http://172.20.10.3/capture"
+ 
+# Dados do modelo Roboflow (Hosted API)
 API_KEY = "bGnAKhsREJNZ5ZMOTVy6"
 MODEL_ID = "little-fire-detection-huthc"
 VERSION = "2"
+ 
+# endpoint Hosted (REST)
 ROBOFLOW_URL = f"https://detect.roboflow.com/{MODEL_ID}/{VERSION}"
-
-# Fator de escala (0.5 = metade da largura e altura)
-SCALE = 0.5
-
-# ==========================================
-# INICIALIZAÇÃO
-# ==========================================
+ 
 box_annotator = sv.BoxAnnotator()
 label_annotator = sv.LabelAnnotator()
-
-print("📡 Conectando ao MQTT...")
-client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-try:
-    client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    print("✅ Conectado ao MQTT!")
-except Exception as e:
-    print(f"⚠️ Erro ao conectar MQTT: {e}")
-    print("O script vai continuar, mas não enviará dados para o dashboard.")
-
+ 
+# fator de escala (0.5 = metade da largura e altura)
+SCALE = 0.5
+ 
 prev_time = time.time()
-
+ 
+ 
 def get_frame_from_esp32():
     resp = requests.get(ESP32_URL, timeout=5)
     resp.raise_for_status()
     img_arr = np.frombuffer(resp.content, dtype=np.uint8)
     image = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
     return image
-
+ 
+ 
 def infer_roboflow(image_bgr):
+    # Roboflow Hosted API aceita imagem base64 no body
     _, buffer = cv2.imencode(".jpg", image_bgr)
     img_bytes = buffer.tobytes()
     img_b64 = base64.b64encode(img_bytes).decode("utf-8")
@@ -64,10 +48,8 @@ def infer_roboflow(image_bgr):
     )
     response.raise_for_status()
     return response.json()
-
-# ==========================================
-# LOOP PRINCIPAL
-# ==========================================
+ 
+ 
 while True:
     try:
         # 1. Buscar frame da ESP32
@@ -78,47 +60,40 @@ while True:
             time.sleep(0.5)
             continue
  
-        # 2. Redimensionar
+        # 2. Redimensionar antes de mandar para a Roboflow
         h, w = image.shape[:2]
         new_w, new_h = int(w * SCALE), int(h * SCALE)
         image_small = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
  
-        # 3. Inferência na Roboflow
+        # 3. Inferência na Roboflow sobre a imagem reduzida (Hosted API)
         result = infer_roboflow(image_small)
+ 
+        # supervision: depende da tua versão
+        # se tens >=0.17 usa from_roboflow(result) direto
         detections = sv.Detections.from_inference(result)
  
-        # 4. Lógica de Fogo para MQTT
-        # Se houver pelo menos 1 deteção, assumimos que é fogo
-        fire_detected = 1 if len(detections) > 0 else 0
-        
-        # Enviar para MQTT
-        if client.is_connected():
-            payload = json.dumps({"fire": fire_detected})
-            client.publish(MQTT_TOPIC, payload)
-            # print(f"🔥 Fire status sent: {fire_detected}")
-
-        # 5. Anotar na imagem
+        # 4. Anotar na imagem original
         annotated = box_annotator.annotate(scene=image_small, detections=detections)
         annotated = label_annotator.annotate(scene=annotated, detections=detections)
  
-        # 6. Calcular FPS
+        # 5. Calcular FPS aproximado
         curr_time = time.time()
         fps = 1.0 / max(curr_time - prev_time, 1e-6)
         prev_time = curr_time
-        
         cv2.putText(
             annotated,
-            f"FPS: {fps:.2f} | Fire: {fire_detected}",
+            f"FPS: {fps:.2f}",
             (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 0, 255) if fire_detected else (0, 255, 0),
+            1,
+            (0, 255, 0),
             2,
             cv2.LINE_AA,
         )
  
-        # 7. Mostrar janela
-        cv2.imshow("ESP32 Fire Detection", annotated)
+        # 6. Mostrar janela
+        cv2.imshow("ESP32 + Roboflow (Pi 3)", annotated)
+        print(f"Frame OK, detections: {len(detections)}, FPS: {fps:.2f}")
  
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
@@ -133,4 +108,3 @@ while True:
         continue
  
 cv2.destroyAllWindows()
-client.disconnect()

@@ -5,7 +5,7 @@ import re
 import paho.mqtt.client as mqtt
 
 # Configuração Serial (Arduino)
-SERIAL_PORT = "COM7"  # Tenta COM3, se falhar tenta COM4 ou COM7
+SERIAL_PORT = "COM6"  # Tenta COM3, se falhar tenta COM4 ou COM7
 BAUD_RATE = 9600
 
 # Configuração MQTT

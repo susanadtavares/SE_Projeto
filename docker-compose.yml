@@ -20,6 +20,8 @@ services:
       - PORT=3001
       - MQTT_URL=mqtt://mosquitto:1883
       - MQTT_TOPIC=sala/ambiente
+    volumes:
+      - ./server/data:/app/data
 
   frontend:
     build: ./projetoSE

@@ -2,9 +2,11 @@
 #include <DHT_U.h>
 #include <Arduino.h>
 
+//O DHT11 liga-se com o pino VCC aos 5V, o GND ao GND e o pino de dados a um pino digital
+//O DHT22 liga-se da mesma forma: VCC aos 5V, GND ao GND e dados a um pino digital. Também necessita de um resistor pull-up
 #define DHTPIN 10
-#define DHTTYPE DHT22
-#define MQ135_PIN A0
+#define DHTTYPE DHT11
+#define MQ135_PIN A4
 
 int ledVermelho = 11;
 int ledAmarelo = 12;
@@ -113,5 +115,5 @@ void loop() {
     digitalWrite(ledVermelho, LOW);
   }
 
-  delay(2000); // DHT22 NÃO SUPORTA LEITURAS MAIS RÁPIDAS QUE ISSO
+  delay(2000); 
 }

@@ -1,7 +1,16 @@
 import Database from "better-sqlite3";
 import bcrypt from "bcrypt";
+import fs from "fs";
+import path from "path";
 
-const db = new Database("database.db");
+// Garantir que a pasta data existe
+const dbPath = path.resolve("data", "database.db");
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const db = new Database(dbPath);
 
 // Criar tabela users
 db.exec(`
@@ -18,6 +27,7 @@ db.exec(`
     temp REAL,
     hum REAL,
     aqi INTEGER,
+    fire INTEGER,
     ts DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -38,6 +48,13 @@ db.exec(`
     FOREIGN KEY(sensor_id) REFERENCES sensors(id)
   );
 `);
+
+// Migração para adicionar coluna fire se não existir (para bases de dados antigas)
+try {
+  db.exec("ALTER TABLE readings ADD COLUMN fire INTEGER");
+} catch (err) {
+  // Ignora erro se a coluna já existir
+}
 
 // Seed Sensors (Exemplo inicial)
 const sensorCount = db.prepare("SELECT count(*) as count FROM sensors").get();

@@ -26,10 +26,9 @@ const statusTemp = (t) => (t == null ? "" : t < 18 ? "Frio" : t <= 26 ? "Confort
 const statusHum  = (h) => (h == null ? "" : h < 30 ? "Seco" : h <= 60 ? "Ótimo" : "Húmido");
 const statusAQI  = (a) => {
   if (a == null) return "";
-  if (a <= 50) return "Bom";
-  if (a <= 100) return "Moderado";
-  if (a <= 150) return "Sensível";
-  if (a <= 200) return "Mau";
+  if (a <= 600) return "Bom";
+  if (a <= 1000) return "Moderado";
+  if (a <= 1500) return "Mau";
   return "Muito mau";
 };
 
@@ -47,12 +46,73 @@ export default function Dashboard() {
   const [reading, setReading] = useState(null);
   const [history, setHistory] = useState([]);
   const [usingDemo, setUsingDemo] = useState(false);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
   const demoRef = useRef({ temp: 22.3, hum: 47.5, aqi: 38 });
 
   const visibleRef = useRef(true);
   const abortRef = useRef(null);
   const backoffRef = useRef(1);
   const timerRef = useRef(null);
+  const lastAlertAttempt = useRef(0);
+
+  // Atualizar relógio para verificar offline
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Alerta de AQI (Trigger Frontend)
+  useEffect(() => {
+    if (!reading) return;
+    
+    // Debug logs
+    // console.log("Reading AQI:", reading.aqi);
+
+    // Se AQI > 1000 (Mau)
+    if (reading.aqi > 1000) {
+      const now = Date.now();
+      
+      console.log("AQI Alto detetado!", reading.aqi);
+      
+      // Tenta enviar apenas se passou 1 minuto desde a última tentativa local
+      if (now - lastAlertAttempt.current > 60000) {
+        console.log("Tentando enviar alerta...");
+        lastAlertAttempt.current = now;
+        
+        const userStr = localStorage.getItem("user");
+        if (!userStr) {
+            console.warn("User não encontrado no localStorage");
+            return;
+        }
+        
+        try {
+          const user = JSON.parse(userStr);
+          if (!user || !user.email) {
+             console.warn("Email não encontrado no user do localStorage");
+             return;
+          }
+
+          console.log("Enviando fetch para notify...", user.email);
+
+          fetch(`${BASE_URL}/api/alerts/notify`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ aqi: reading.aqi, email: user.email })
+          })
+          .then(res => res.json())
+          .then(data => console.log("Resposta do alerta:", data))
+          .catch(err => console.error("Erro ao enviar alerta:", err));
+        } catch (e) {
+          console.error("Erro ao ler user do localStorage", e);
+        }
+      } else {
+          console.log("Alerta ignorado (cooldown local)");
+      }
+    }
+  }, [reading]);
 
   // Observa visibilidade do tab para pausar/resumir pooling
   useEffect(() => {
@@ -101,6 +161,8 @@ export default function Dashboard() {
           temp: Number(data.temp ?? data.temperature ?? NaN),
           hum: Number(data.hum ?? data.humidity ?? NaN),
           aqi: Number(data.aqi ?? data.airQuality ?? NaN),
+          fire: data.fire,
+          fireDanger: data.fireDanger,
           ts: now.getTime(),
         };
 
@@ -113,20 +175,12 @@ export default function Dashboard() {
         });
 
         backoffRef.current = 1; // sucesso: reset backoff
-      } catch {
-        // DEMO fallback
-        setUsingDemo(true);
-        const n = nextDemo(demoRef.current);
-        demoRef.current = n;
-        const now = new Date();
-        const r = { ...n, ts: now.getTime() };
-        setReading(r);
-        setHistory((prev) => {
-          const next = [...prev, { t: now, ...r }];
-          if (next.length > MAX_POINTS) next.shift();
-          return next;
-        });
-
+      } catch (err) {
+        console.warn("Falha ao obter dados:", err);
+        // Se falhar, não usamos demo. Mantemos o estado anterior ou assumimos erro.
+        // O isOffline vai tratar de mostrar "N/A" se o timestamp for antigo.
+        setUsingDemo(false); 
+        
         // aumenta backoff até 10x
         backoffRef.current = Math.min(backoffRef.current * 1.6, 10);
       } finally {
@@ -215,11 +269,6 @@ export default function Dashboard() {
           labels: { color: "#9a9a9a", usePointStyle: true, boxWidth: 8 },
         },
         tooltip: { enabled: true },
-        decimation: {
-          enabled: true,
-          algorithm: "lttb",
-          samples: 100,
-        },
       },
       scales: {
         x: {
@@ -227,11 +276,17 @@ export default function Dashboard() {
           grid: { color: "rgba(255,255,255,.06)" },
         },
         y: {
+          type: 'linear',
+          min: 0,
+          max: 100,
           ticks: { color: "#9a9a9a" },
           grid: { color: "rgba(255,255,255,.06)" },
           title: { display: true, text: "°C / %", color: "#9a9a9a" },
         },
         y2: {
+          type: 'linear',
+          min: 400,
+          max: 1500,
           position: "right",
           ticks: { color: "#9a9a9a" },
           grid: { drawOnChartArea: false },
@@ -241,6 +296,13 @@ export default function Dashboard() {
     }),
     [usingDemo]
   );
+
+  const isOffline = useMemo(() => {
+    if (usingDemo) return false;
+    if (!reading?.ts) return true;
+    // Se os dados têm mais de 5 segundos, consideramos offline
+    return currentTime - reading.ts > 5000;
+  }, [reading, usingDemo, currentTime]);
 
   return (
     <div className="content">
@@ -256,7 +318,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="card-body">
-              <div className="chart-area" style={{ height: "350px" }}>
+              <div className="chart-area" style={{ height: "450px" }}>
                 <Line data={chartData} options={options} />
               </div>
             </div>
@@ -268,41 +330,41 @@ export default function Dashboard() {
         <div className="col-lg-3">
           <SensorCard
             title="Temperatura"
-            value={Number.isFinite(reading?.temp) ? reading.temp.toFixed(1) : "--"}
-            unit="°C"
-            status={statusTemp(reading?.temp)}
+            value={isOffline ? "N/A" : (Number.isFinite(reading?.temp) ? reading.temp.toFixed(1) : "--")}
+            unit={isOffline ? "" : "°C"}
+            status={isOffline ? "Desligado" : statusTemp(reading?.temp)}
             icon="tim-icons icon-thermometer-25"
-            color="text-warning"
+            color={isOffline ? "text-secondary" : "text-warning"}
           />
         </div>
         <div className="col-lg-3">
           <SensorCard
             title="Humidade"
-            value={Number.isFinite(reading?.hum) ? reading.hum.toFixed(0) : "--"}
-            unit="%"
-            status={statusHum(reading?.hum)}
+            value={isOffline ? "N/A" : (Number.isFinite(reading?.hum) ? reading.hum.toFixed(0) : "--")}
+            unit={isOffline ? "" : "%"}
+            status={isOffline ? "Desligado" : statusHum(reading?.hum)}
             icon="tim-icons icon-shape-star"
-            color="text-info"
+            color={isOffline ? "text-secondary" : "text-info"}
           />
         </div>
         <div className="col-lg-3">
           <SensorCard
             title="Qualidade do Ar"
-            value={Number.isFinite(reading?.aqi) ? reading.aqi : "--"}
-            unit="AQI"
-            status={statusAQI(reading?.aqi)}
+            value={isOffline ? "N/A" : (Number.isFinite(reading?.aqi) ? reading.aqi : "--")}
+            unit={isOffline ? "" : "AQI"}
+            status={isOffline ? "Desligado" : statusAQI(reading?.aqi)}
             icon="tim-icons icon-molecule-40"
-            color="text-success"
+            color={isOffline ? "text-secondary" : "text-success"}
           />
         </div>
         <div className="col-lg-3">
           <SensorCard
             title="Risco de Incêndio"
-            value={reading?.fireDanger ? "PERIGO" : "Seguro"}
+            value={isOffline ? "N/A" : (reading?.fireDanger ? "PERIGO" : "Seguro")}
             unit=""
-            status={reading?.fire === 1 ? "Fogo detetado (Câmara)" : "Sem deteção (Câmara)"}
+            status={isOffline ? "Desligado" : (reading?.fire === 1 ? "Fogo detetado (Câmara)" : "Sem deteção (Câmara)")}
             icon="tim-icons icon-alert-circle-exc"
-            color={reading?.fireDanger ? "text-danger" : "text-success"}
+            color={isOffline ? "text-secondary" : (reading?.fireDanger ? "text-danger" : "text-success")}
           />
         </div>
       </div>
