@@ -6,12 +6,24 @@ const COOLDOWN = 60 * 60 * 1000; // 1 hora
 
 export const getAllAlerts = (req, res) => {
   try {
-    const alerts = db.prepare(`
+    const { email, role } = req.query;
+    let query = `
       SELECT alerts.*, sensors.name as sensor_name 
       FROM alerts 
       LEFT JOIN sensors ON alerts.sensor_id = sensors.id
-      ORDER BY timestamp DESC
-    `).all();
+    `;
+    
+    const params = [];
+
+    // Se não for admin, filtra pelos seus alertas ou alertas globais (user_email IS NULL)
+    if (role !== 'admin' && email) {
+      query += ` WHERE user_email = ? OR user_email IS NULL`;
+      params.push(email);
+    }
+
+    query += ` ORDER BY timestamp DESC`;
+
+    const alerts = db.prepare(query).all(...params);
     res.json(alerts);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -57,9 +69,9 @@ export const sendAqiAlert = async (req, res) => {
     // Guardar alerta na Base de Dados
     try {
       db.prepare(`
-        INSERT INTO alerts (sensor_id, message, type, timestamp)
-        VALUES (?, ?, ?, ?)
-      `).run(null, `Qualidade do ar MAU (AQI: ${aqi})`, 'critical', new Date().toISOString());
+        INSERT INTO alerts (sensor_id, user_email, message, type, timestamp)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(null, email, `Qualidade do ar MAU (AQI: ${aqi})`, 'critical', new Date().toISOString());
       console.log("[ALERTA] Guardado na BD.");
     } catch (dbErr) {
       console.error("[ALERTA] Erro ao guardar na BD:", dbErr);
@@ -72,5 +84,20 @@ export const sendAqiAlert = async (req, res) => {
   } catch (error) {
     console.error("Erro ao enviar alerta:", error);
     res.status(500).json({ error: "Failed to send email" });
+  }
+};
+
+export const deleteAlert = (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = db.prepare('DELETE FROM alerts WHERE id = ?').run(id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Alerta não encontrado" });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };

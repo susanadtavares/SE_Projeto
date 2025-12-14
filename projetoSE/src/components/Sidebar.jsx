@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import { FaChartPie, FaBell, FaUsers, FaSignOutAlt, FaFire } from "react-icons/fa";
 import "../styles/sidebar.css";
 
 export default function Sidebar() {
@@ -15,7 +16,8 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar__title">
-        FireGuard
+        <FaFire className="sidebar__logo-icon" />
+        <span>Detetor de Incêndio</span>
       </div>
 
       <nav className="sidebar__nav">
@@ -25,6 +27,7 @@ export default function Sidebar() {
             `sidebar__link${isActive ? " is-active" : ""}`
           }
         >
+          <FaChartPie className="sidebar__icon" />
           <span className="sidebar__text">Dashboard</span>
         </NavLink>
 
@@ -34,6 +37,7 @@ export default function Sidebar() {
             `sidebar__link${isActive ? " is-active" : ""}`
           }
         >
+          <FaBell className="sidebar__icon" />
           <span className="sidebar__text">Alertas</span>
         </NavLink>
 
@@ -44,6 +48,7 @@ export default function Sidebar() {
               `sidebar__link${isActive ? " is-active" : ""}`
             }
           >
+            <FaUsers className="sidebar__icon" />
             <span className="sidebar__text">Utilizadores</span>
           </NavLink>
         )}
@@ -60,7 +65,8 @@ export default function Sidebar() {
           </div>
         </div>
         <button onClick={handleLogout} className="logout-btn">
-          Sair
+          <FaSignOutAlt />
+          <span>Sair</span>
         </button>
       </div>
     </aside>

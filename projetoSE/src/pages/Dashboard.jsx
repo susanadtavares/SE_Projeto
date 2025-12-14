@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import SensorCard from "../components/SensorCard";
+import { FaThermometerHalf, FaTint, FaWind, FaFire } from "react-icons/fa";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -225,8 +226,8 @@ export default function Dashboard() {
           pointRadius: 0,
           tension: 0.35,
           fill: true,
-          borderColor: "#ff3d00",
-          backgroundColor: "rgba(255, 61, 0, 0.1)",
+          borderColor: "#ff8d72",
+          backgroundColor: "rgba(255, 141, 114, 0.1)",
         },
         {
           label: "Humidade (%)",
@@ -235,8 +236,8 @@ export default function Dashboard() {
           pointRadius: 0,
           tension: 0.35,
           fill: true,
-          borderColor: "#ff9100",
-          backgroundColor: "rgba(255, 145, 0, 0.1)",
+          borderColor: "#1d8cf8",
+          backgroundColor: "rgba(29, 140, 248, 0.1)",
         },
         {
           label: "AQI",
@@ -246,7 +247,7 @@ export default function Dashboard() {
           tension: 0.35,
           yAxisID: "y2",
           fill: false,
-          borderColor: "#ff3d00",
+          borderColor: "#8993a2",
         },
       ],
     };
@@ -285,8 +286,8 @@ export default function Dashboard() {
         },
         y2: {
           type: 'linear',
-          min: 400,
-          max: 1500,
+          min: 0, // Adjusted to show low values
+          max: 1500, // Adjusted for typical AQI range
           position: "right",
           ticks: { color: "#9a9a9a" },
           grid: { drawOnChartArea: false },
@@ -300,29 +301,17 @@ export default function Dashboard() {
   const isOffline = useMemo(() => {
     if (usingDemo) return false;
     if (!reading?.ts) return true;
-    // Se os dados têm mais de 5 segundos, consideramos offline
-    return currentTime - reading.ts > 5000;
+    // Se os dados têm mais de 15 segundos, consideramos offline
+    return currentTime - reading.ts > 15000;
   }, [reading, usingDemo, currentTime]);
 
   return (
     <div className="content">
-      <div className="row">
-        <div className="col-12">
-          <div className="card card-chart">
-            <div className="card-header">
-              <div className="row">
-                <div className="col-sm-6 text-left">
-                  <h5 className="card-category">Visão Geral</h5>
-                  <h2 className="card-title">Dashboard Ambiental</h2>
-                </div>
-              </div>
-            </div>
-            <div className="card-body">
-              <div className="chart-area" style={{ height: "450px" }}>
-                <Line data={chartData} options={options} />
-              </div>
-            </div>
-          </div>
+      {/* Header Section */}
+      <div className="row mb-4 align-items-end">
+        <div className="col-md-12">
+          <h2 className="title m-0"><span style={{fontWeight: 700, color: 'white'}}>Dashboard Ambiental</span></h2>
+          <p className="m-0" style={{color: 'rgba(255, 255, 255, 0.6)'}}>Visão geral dos sensores e métricas em tempo real.</p>
         </div>
       </div>
 
@@ -333,7 +322,7 @@ export default function Dashboard() {
             value={isOffline ? "N/A" : (Number.isFinite(reading?.temp) ? reading.temp.toFixed(1) : "--")}
             unit={isOffline ? "" : "°C"}
             status={isOffline ? "Desligado" : statusTemp(reading?.temp)}
-            icon="tim-icons icon-thermometer-25"
+            icon={<FaThermometerHalf />}
             color={isOffline ? "text-secondary" : "text-warning"}
           />
         </div>
@@ -343,7 +332,7 @@ export default function Dashboard() {
             value={isOffline ? "N/A" : (Number.isFinite(reading?.hum) ? reading.hum.toFixed(0) : "--")}
             unit={isOffline ? "" : "%"}
             status={isOffline ? "Desligado" : statusHum(reading?.hum)}
-            icon="tim-icons icon-shape-star"
+            icon={<FaTint />}
             color={isOffline ? "text-secondary" : "text-info"}
           />
         </div>
@@ -353,19 +342,39 @@ export default function Dashboard() {
             value={isOffline ? "N/A" : (Number.isFinite(reading?.aqi) ? reading.aqi : "--")}
             unit={isOffline ? "" : "AQI"}
             status={isOffline ? "Desligado" : statusAQI(reading?.aqi)}
-            icon="tim-icons icon-molecule-40"
-            color={isOffline ? "text-secondary" : "text-success"}
+            icon={<FaWind />}
+            color="text-secondary"
           />
         </div>
         <div className="col-lg-3">
           <SensorCard
             title="Risco de Incêndio"
-            value={isOffline ? "N/A" : (reading?.fireDanger ? "PERIGO" : "Seguro")}
+            value={isOffline ? "N/A" : (reading?.fireDanger ? "Alto" : "Baixo")}
             unit=""
             status={isOffline ? "Desligado" : (reading?.fire === 1 ? "Fogo detetado (Câmara)" : "Sem deteção (Câmara)")}
-            icon="tim-icons icon-alert-circle-exc"
-            color={isOffline ? "text-secondary" : (reading?.fireDanger ? "text-danger" : "text-success")}
+            icon={<FaFire />}
+            color={isOffline ? "text-secondary" : "text-danger"}
           />
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="col-12">
+          <div className="card card-chart" style={{background: '#27293d', border: 'none', borderRadius: '12px', boxShadow: '0 4px 20px 0 rgba(0,0,0,.14)'}}>
+            <div className="card-header" style={{padding: '20px'}}>
+              <div className="row">
+                <div className="col-sm-6 text-left">
+                  <h5 className="card-category" style={{color: 'rgba(255,255,255,0.6)'}}>Histórico</h5>
+                  <h2 className="card-title" style={{color: 'white', fontWeight: 600}}>Evolução Temporal</h2>
+                </div>
+              </div>
+            </div>
+            <div className="card-body" style={{padding: '0 20px 20px 20px'}}>
+              <div className="chart-area" style={{ height: "400px" }}>
+                <Line data={chartData} options={options} />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

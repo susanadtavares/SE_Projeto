@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaFire, FaLock, FaEnvelope } from "react-icons/fa";
 import "../styles/Login.css";
 
 export default function Login() {
@@ -42,8 +43,11 @@ export default function Login() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
+          <div className="icon-container">
+            <FaFire size={40} />
+          </div>
           <h2 className="login-title">Bem-vindo</h2>
-          <p className="login-subtitle">Dashboard Ambiental IoT</p>
+          <p className="login-subtitle">Dashboard Ambiental</p>
         </div>
 
         <form onSubmit={handleLogin}>
@@ -51,26 +55,32 @@ export default function Login() {
 
           <div className="form-group">
             <label className="form-label">Email</label>
-            <input 
-              type="email"
-              className="form-input"
-              placeholder="exemplo@iot.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <div className="input-wrapper">
+              <FaEnvelope className="input-icon" />
+              <input 
+                type="email"
+                className="form-input"
+                placeholder="exemplo@gmail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
           </div>
 
           <div className="form-group">
             <label className="form-label">Password</label>
-            <input 
-              type="password"
-              className="form-input"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="input-wrapper">
+              <FaLock className="input-icon" />
+              <input 
+                type="password"
+                className="form-input"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
           </div>
 
           <button type="submit" className="login-btn">

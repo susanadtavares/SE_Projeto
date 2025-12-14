@@ -42,6 +42,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     sensor_id TEXT,
+    user_email TEXT,
     message TEXT,
     type TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
