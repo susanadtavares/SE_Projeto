@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   mosquitto:
     image: eclipse-mosquitto
@@ -22,6 +20,8 @@ services:
       - PORT=3001
       - MQTT_URL=mqtt://mosquitto:1883
       - MQTT_TOPIC=sala/ambiente
+    volumes:
+      - backend_data:/app/data
 
   frontend:
     build: ./projetoSE
@@ -31,3 +31,6 @@ services:
       - "5173:80"
     depends_on:
       - backend
+
+volumes:
+  backend_data:

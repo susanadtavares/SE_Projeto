@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import SensorCard from "../components/SensorCard";
+import { FaThermometerHalf, FaTint, FaWind, FaFire } from "react-icons/fa";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -18,7 +19,7 @@ ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip,
 
 const MAX_POINTS = 60;
 const BASE_URL = import.meta?.env?.VITE_API_URL ?? "http://localhost:3001";
-const ENDPOINT = `${BASE_URL}/api/last`;
+const ENDPOINT = `${BASE_URL}/api/readings/last`;
 const POLL_MS = 1000; // intervalo base
 
 // Helpers de status
@@ -26,10 +27,9 @@ const statusTemp = (t) => (t == null ? "" : t < 18 ? "Frio" : t <= 26 ? "Confort
 const statusHum  = (h) => (h == null ? "" : h < 30 ? "Seco" : h <= 60 ? "Ótimo" : "Húmido");
 const statusAQI  = (a) => {
   if (a == null) return "";
-  if (a <= 50) return "Bom";
-  if (a <= 100) return "Moderado";
-  if (a <= 150) return "Sensível";
-  if (a <= 200) return "Mau";
+  if (a <= 600) return "Bom";
+  if (a <= 1000) return "Moderado";
+  if (a <= 1500) return "Mau";
   return "Muito mau";
 };
 
@@ -47,12 +47,73 @@ export default function Dashboard() {
   const [reading, setReading] = useState(null);
   const [history, setHistory] = useState([]);
   const [usingDemo, setUsingDemo] = useState(false);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
   const demoRef = useRef({ temp: 22.3, hum: 47.5, aqi: 38 });
 
   const visibleRef = useRef(true);
   const abortRef = useRef(null);
   const backoffRef = useRef(1);
   const timerRef = useRef(null);
+  const lastAlertAttempt = useRef(0);
+
+  // Atualizar relógio para verificar offline
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Alerta de AQI (Trigger Frontend)
+  useEffect(() => {
+    if (!reading) return;
+    
+    // Debug logs
+    // console.log("Reading AQI:", reading.aqi);
+
+    // Se AQI > 1000 (Mau)
+    if (reading.aqi > 1000) {
+      const now = Date.now();
+      
+      console.log("AQI Alto detetado!", reading.aqi);
+      
+      // Tenta enviar apenas se passou 1 minuto desde a última tentativa local
+      if (now - lastAlertAttempt.current > 60000) {
+        console.log("Tentando enviar alerta...");
+        lastAlertAttempt.current = now;
+        
+        const userStr = localStorage.getItem("user");
+        if (!userStr) {
+            console.warn("User não encontrado no localStorage");
+            return;
+        }
+        
+        try {
+          const user = JSON.parse(userStr);
+          if (!user || !user.email) {
+             console.warn("Email não encontrado no user do localStorage");
+             return;
+          }
+
+          console.log("Enviando fetch para notify...", user.email);
+
+          fetch(`${BASE_URL}/api/alerts/notify`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ aqi: reading.aqi, email: user.email })
+          })
+          .then(res => res.json())
+          .then(data => console.log("Resposta do alerta:", data))
+          .catch(err => console.error("Erro ao enviar alerta:", err));
+        } catch (e) {
+          console.error("Erro ao ler user do localStorage", e);
+        }
+      } else {
+          console.log("Alerta ignorado (cooldown local)");
+      }
+    }
+  }, [reading]);
 
   // Observa visibilidade do tab para pausar/resumir pooling
   useEffect(() => {
@@ -81,7 +142,16 @@ export default function Dashboard() {
         const ctrl = new AbortController();
         abortRef.current = ctrl;
 
-        const res = await fetch(ENDPOINT, { mode: "cors", signal: ctrl.signal });
+        // Obter token do localStorage (já vem como string JSON)
+        const token = localStorage.getItem("token");
+
+        const res = await fetch(ENDPOINT, { 
+          mode: "cors", 
+          signal: ctrl.signal,
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
 
         if (res.status === 204) throw new Error("sem dados");
         if (!res.ok) throw new Error(`erro http ${res.status}`);
@@ -92,6 +162,9 @@ export default function Dashboard() {
           temp: Number(data.temp ?? data.temperature ?? NaN),
           hum: Number(data.hum ?? data.humidity ?? NaN),
           aqi: Number(data.aqi ?? data.airQuality ?? NaN),
+          fire: data.fire,
+          fireCount: data.fireCount,
+          fireDanger: data.fireDanger,
           ts: now.getTime(),
         };
 
@@ -104,20 +177,12 @@ export default function Dashboard() {
         });
 
         backoffRef.current = 1; // sucesso: reset backoff
-      } catch {
-        // DEMO fallback
-        setUsingDemo(true);
-        const n = nextDemo(demoRef.current);
-        demoRef.current = n;
-        const now = new Date();
-        const r = { ...n, ts: now.getTime() };
-        setReading(r);
-        setHistory((prev) => {
-          const next = [...prev, { t: now, ...r }];
-          if (next.length > MAX_POINTS) next.shift();
-          return next;
-        });
-
+      } catch (err) {
+        console.warn("Falha ao obter dados:", err);
+        // Se falhar, não usamos demo. Mantemos o estado anterior ou assumimos erro.
+        // O isOffline vai tratar de mostrar "N/A" se o timestamp for antigo.
+        setUsingDemo(false); 
+        
         // aumenta backoff até 10x
         backoffRef.current = Math.min(backoffRef.current * 1.6, 10);
       } finally {
@@ -162,9 +227,8 @@ export default function Dashboard() {
           pointRadius: 0,
           tension: 0.35,
           fill: true,
-          // usa cor por CSS variable se tiveres (fallbacks incluidos)
-          borderColor: "var(--chart-temp, #f97316)",
-          backgroundColor: "var(--chart-temp-bg, rgba(249, 115, 22, .12))",
+          borderColor: "#ff8d72",
+          backgroundColor: "rgba(255, 141, 114, 0.1)",
         },
         {
           label: "Humidade (%)",
@@ -173,8 +237,8 @@ export default function Dashboard() {
           pointRadius: 0,
           tension: 0.35,
           fill: true,
-          borderColor: "var(--chart-hum, #22d3ee)",
-          backgroundColor: "var(--chart-hum-bg, rgba(34, 211, 238, .12))",
+          borderColor: "#1d8cf8",
+          backgroundColor: "rgba(29, 140, 248, 0.1)",
         },
         {
           label: "AQI",
@@ -184,7 +248,7 @@ export default function Dashboard() {
           tension: 0.35,
           yAxisID: "y2",
           fill: false,
-          borderColor: "var(--chart-aqi, #a78bfa)",
+          borderColor: "#8993a2",
         },
       ],
     };
@@ -204,64 +268,115 @@ export default function Dashboard() {
           padding: { bottom: 8 },
         },
         legend: {
-          labels: { color: "#fff", usePointStyle: true, boxWidth: 8 },
+          labels: { color: "#9a9a9a", usePointStyle: true, boxWidth: 8 },
         },
         tooltip: { enabled: true },
-        decimation: {
-          enabled: true,
-          algorithm: "lttb",
-          samples: 100,
-        },
       },
       scales: {
         x: {
-          ticks: { color: "#c9c9d1", maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+          ticks: { color: "#9a9a9a", maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
           grid: { color: "rgba(255,255,255,.06)" },
         },
         y: {
-          ticks: { color: "#c9c9d1" },
+          type: 'linear',
+          min: 0,
+          max: 100,
+          ticks: { color: "#9a9a9a" },
           grid: { color: "rgba(255,255,255,.06)" },
-          title: { display: true, text: "°C / %", color: "#c9c9d1" },
+          title: { display: true, text: "°C / %", color: "#9a9a9a" },
         },
         y2: {
+          type: 'linear',
+          min: 0, // Adjusted to show low values
+          max: 1500, // Adjusted for typical AQI range
           position: "right",
-          ticks: { color: "#c9c9d1" },
+          ticks: { color: "#9a9a9a" },
           grid: { drawOnChartArea: false },
-          title: { display: true, text: "AQI", color: "#c9c9d1" },
+          title: { display: true, text: "AQI", color: "#9a9a9a" },
         },
       },
     }),
     [usingDemo]
   );
 
-  return (
-    <div className="grid" style={{ display: "grid", gap: 16 }}>
-      <h1>Dashboard Ambiental</h1>
+  const isOffline = useMemo(() => {
+    if (usingDemo) return false;
+    if (!reading?.ts) return true;
+    // Se os dados têm mais de 60 segundos, consideramos offline (aumentado para evitar flickering)
+    return currentTime - reading.ts > 60000;
+  }, [reading, usingDemo, currentTime]);
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16 }}>
-        <SensorCard
-          title="Temperatura"
-          value={Number.isFinite(reading?.temp) ? reading.temp.toFixed(1) : "--"
-          }
-          unit="°C"
-          status={statusTemp(reading?.temp)}
-        />
-        <SensorCard
-          title="Humidade"
-          value={Number.isFinite(reading?.hum) ? reading.hum.toFixed(0) : "--"}
-          unit="%"
-          status={statusHum(reading?.hum)}
-        />
-        <SensorCard
-          title="Qualidade do Ar (AQI)"
-          value={Number.isFinite(reading?.aqi) ? reading.aqi : "--"}
-          unit=""
-          status={statusAQI(reading?.aqi)}
-        />
+  return (
+    <div className="content">
+      {/* Header Section */}
+      <div className="row mb-4 align-items-end">
+        <div className="col-md-12">
+          <h2 className="title m-0"><span style={{fontWeight: 700, color: 'white'}}>Dashboard Ambiental</span></h2>
+          <p className="m-0" style={{color: 'rgba(255, 255, 255, 0.6)'}}>Visão geral dos sensores e métricas em tempo real.</p>
+        </div>
       </div>
 
-      <div className="card" style={{ padding: 16, height: 360 }}>
-        <Line data={chartData} options={options} />
+      <div className="row">
+        <div className="col-lg-3">
+          <SensorCard
+            title="Temperatura"
+            value={isOffline ? "N/A" : (Number.isFinite(reading?.temp) ? reading.temp.toFixed(1) : "--")}
+            unit={isOffline ? "" : "°C"}
+            status={isOffline ? "Desligado" : statusTemp(reading?.temp)}
+            icon={<FaThermometerHalf />}
+            color={isOffline ? "text-secondary" : "text-warning"}
+          />
+        </div>
+        <div className="col-lg-3">
+          <SensorCard
+            title="Humidade"
+            value={isOffline ? "N/A" : (Number.isFinite(reading?.hum) ? reading.hum.toFixed(0) : "--")}
+            unit={isOffline ? "" : "%"}
+            status={isOffline ? "Desligado" : statusHum(reading?.hum)}
+            icon={<FaTint />}
+            color={isOffline ? "text-secondary" : "text-info"}
+          />
+        </div>
+        <div className="col-lg-3">
+          <SensorCard
+            title="Qualidade do Ar"
+            value={isOffline ? "N/A" : (Number.isFinite(reading?.aqi) ? reading.aqi : "--")}
+            unit={isOffline ? "" : "AQI"}
+            status={isOffline ? "Desligado" : statusAQI(reading?.aqi)}
+            icon={<FaWind />}
+            color="text-secondary"
+          />
+        </div>
+        <div className="col-lg-3">
+          <SensorCard
+            title="Risco de Incêndio"
+            value={isOffline || reading?.fire == null ? "N/A" : (reading?.fireCount >= 5 ? `Elevado (${reading.fireCount})` : reading?.fireCount >= 1 ? `Moderado (${reading.fireCount})` : `Baixo (${reading.fireCount})`)}
+            unit=""
+            status={isOffline || reading?.fire == null ? "Sem deteção de câmara" : (reading?.fireCount >= 1 ? "Fogo detetado" : "Monitorização ativa")}
+            icon={<FaFire />}
+            color={isOffline || reading?.fire == null ? "text-secondary" : (reading?.fireCount >= 5 ? "text-danger" : reading?.fireCount >= 1 ? "text-warning" : "text-success")}
+          />
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="col-12">
+          <div className="card card-chart" style={{background: '#27293d', border: 'none', borderRadius: '12px', boxShadow: '0 4px 20px 0 rgba(0,0,0,.14)'}}>
+            <div className="card-header" style={{padding: '20px'}}>
+              <div className="row">
+                <div className="col-sm-6 text-left">
+                  <h5 className="card-category" style={{color: 'rgba(255,255,255,0.6)'}}>Histórico</h5>
+                  <h2 className="card-title" style={{color: 'white', fontWeight: 600}}>Evolução Temporal</h2>
+                </div>
+              </div>
+            </div>
+            <div className="card-body" style={{padding: '0 20px 20px 20px'}}>
+              <div className="chart-area" style={{ height: "400px" }}>
+                <Line data={chartData} options={options} />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

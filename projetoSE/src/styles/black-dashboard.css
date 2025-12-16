@@ -2,10 +2,20 @@
 
 /* cores base */
 :root {
-  --bd-bg: #1e1e2f;
+  --bd-bg: #1e1e29; /* Updated to match sidebar */
   --bd-card: #27293d;
-  --bd-accent: #e14eca;
+  --bd-accent: #ff3d00; /* Laranja Fogo */
   --bd-text: #ffffffcc;
+}
+
+/* Delete button visibility on hover */
+.table tr .delete-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.table tr:hover .delete-btn {
+  opacity: 1;
 }
 
 /* fundo geral */
@@ -18,42 +28,33 @@ html, body, #root {
 }
 
 /* layout principal */
+.wrapper {
+  display: block;
+  min-height: 100vh;
+}
+
 .main {
-  margin-left: 240px;
-  min-height: 100%;
+  min-height: 100vh;
   padding: 1.25rem 1.25rem 3rem;
+  background: var(--bd-bg);
+  margin-left: 260px;
+  transition: margin-left 0.3s ease;
+}
+
+@media (max-width: 1100px) {
+  .main {
+    margin-left: 210px;
+  }
+}
+
+@media (max-width: 820px) {
+  .main {
+    margin-left: 72px;
+  }
 }
 
 /* === Sidebar === */
-.sidebar {
-  width: 240px;
-  background: #1a1c2b;
-  position: fixed;
-  inset: 0 auto 0 0;
-  padding: 1rem;
-  overflow-y: auto;
-}
-
-.sidebar h4 {
-  color: #fff;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-}
-
-.sidebar a {
-  color: #adb5bd;
-  text-decoration: none;
-  display: block;
-  padding: 0.6rem 0.8rem;
-  border-radius: 0.5rem;
-  transition: background 0.2s, color 0.2s;
-}
-
-.sidebar a.active,
-.sidebar a:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-}
+/* Styles moved to sidebar.css */
 
 /* === Navbar === */
 .navbar {
@@ -69,12 +70,14 @@ html, body, #root {
 
 /* === Card === */
 .card {
-  background: var(--bd-card);
+  background: var(--bd-card) !important;
+  background-color: var(--bd-card) !important;
   border: none;
   border-radius: 0.75rem;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
   padding: 1rem;
-  color: var(--bd-text);
+  color: var(--bd-text) !important;
+  margin-bottom: 20px;
 }
 
 .card-title {
@@ -99,6 +102,76 @@ html, body, #root {
   opacity: 0.85;
 }
 
+/* === Tabelas === */
+.table {
+  color: var(--bd-text) !important;
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--bd-text);
+  --bs-table-striped-bg: rgba(255, 255, 255, 0.05);
+  --bs-table-hover-bg: rgba(255, 255, 255, 0.1);
+  background-color: transparent !important;
+  width: 100%;
+  margin-bottom: 1rem;
+  vertical-align: top;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.table > :not(caption) > * > * {
+  background-color: transparent !important;
+  color: var(--bd-text) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none !important;
+}
+
+.table thead th {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+.table td {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--bd-text) !important;
+  padding: 12px 8px;
+  vertical-align: middle;
+}
+
+/* Override Bootstrap text-primary */
+.text-primary {
+  color: var(--bd-accent) !important;
+}
+
+/* === Inputs === */
+.form-control, 
+.form-select,
+select.form-control,
+input.form-control {
+  border: 1px solid #2b3553 !important;
+  color: #fff !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+  background: #1e1e2f !important;
+  border-color: var(--bd-accent) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.form-control::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Fix for select dropdown options */
+.form-control option,
+.form-select option {
+  background-color: #1e1e2f;
+  color: #fff;
+}
+
 /* === Utilidades === */
 h1, h2, h3, h4, h5, h6 {
   color: #fff;
@@ -106,4 +179,9 @@ h1, h2, h3, h4, h5, h6 {
 
 a {
   color: var(--bd-accent);
+}
+
+/* === Custom Utilities === */
+.bg-transparent-important {
+  background: transparent !important;
 }
