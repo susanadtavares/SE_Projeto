@@ -130,7 +130,7 @@ export default function UsersManagement() {
                   padding: '10px',
                   borderRadius: '8px'
                 }}>
-                  Gerar Conta
+                  Criar Conta
                 </button>
               </form>
             </div>

@@ -21,7 +21,7 @@ services:
       - MQTT_URL=mqtt://mosquitto:1883
       - MQTT_TOPIC=sala/ambiente
     volumes:
-      - ./server/data:/app/data
+      - backend_data:/app/data
 
   frontend:
     build: ./projetoSE
@@ -31,3 +31,6 @@ services:
       - "5173:80"
     depends_on:
       - backend
+
+volumes:
+  backend_data:

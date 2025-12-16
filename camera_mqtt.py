@@ -8,12 +8,12 @@ import paho.mqtt.client as mqtt
 import json
 
 # --- CONFIGURAÇÃO MQTT ---
-MQTT_BROKER = "localhost"
+MQTT_BROKER = "172.20.10.3"
 MQTT_PORT = 1883
 MQTT_TOPIC = "sala/ambiente"
 
 # URL da ESP32-CAM (endpoint que devolve uma imagem JPEG)
-ESP32_URL = "http://172.20.10.3/capture"
+ESP32_URL = "http://172.20.10.2/capture"
  
 # Dados do modelo Roboflow (Hosted API)
 API_KEY = "bGnAKhsREJNZ5ZMOTVy6"
@@ -98,12 +98,15 @@ while True:
         
         payload = {
             "fire": fire_detected,
-            "ts": int(time.time() * 1000)
+            "ts": int(time.time() * 1000),
+            "debug_id": "USER_TERMINAL_SCRIPT"
         }
         
         # Publicar apenas se houver fogo ou periodicamente (opcional)
         # Aqui publicamos sempre para manter o heartbeat, ou podes filtrar
-        client.publish(MQTT_TOPIC, json.dumps(payload))
+        payload_str = json.dumps(payload)
+        print(f"DEBUG: Sending Payload -> {payload_str}")
+        client.publish(MQTT_TOPIC, payload_str)
 
 
         # 5. Calcular FPS aproximado

@@ -12,21 +12,26 @@ export function saveReading(data) {
   const { temp, hum, aqi, fire } = data;
 
   try {
-    // Inserir na BD
+    // Debug: Log incoming data
+    console.log(`[SAVE] Data:`, JSON.stringify(data));
+
+    // Inserir na BD (SEM MERGE - guardamos exatamente o que recebemos)
     db.prepare(`
       INSERT INTO readings (temp, hum, aqi, fire, ts)
       VALUES (?, ?, ?, ?, ?)
     `).run(temp, hum, aqi, fire, ts);
 
-    // --- ALERTA DE FOGO (10 leituras consecutivas) ---
+    // --- ALERTA DE FOGO (8 em 10 leituras) ---
     if (Number(fire) === 1) {
       // Verificar apenas as leituras que contêm informação de fogo
       const last10 = db.prepare("SELECT fire FROM readings WHERE fire IS NOT NULL ORDER BY ts DESC LIMIT 10").all();
       
       if (last10.length >= 10) {
-        const allFire = last10.every(r => Number(r.fire) === 1);
+        // Contar quantos '1' existem nas últimas 10 leituras
+        const fireCount = last10.filter(r => Number(r.fire) === 1).length;
         
-        if (allFire) {
+        // Se 8 ou mais forem positivos (permite 2 falhas/flickers)
+        if (fireCount >= 8) {
           const now = Date.now();
           if (now - lastFireAlert > FIRE_ALERT_COOLDOWN) {
             lastFireAlert = now;
@@ -74,18 +79,44 @@ export function saveReading(data) {
 
 export function getLast(req, res) {
   try {
+    // 1. Obter a leitura mais recente absoluta (para heartbeat do sistema)
     const last = db.prepare("SELECT * FROM readings ORDER BY ts DESC LIMIT 1").get();
-    
     if (!last) return res.status(204).send();
 
-    // Recalcular fireDanger (10 leituras)
-    const last10 = db.prepare("SELECT fire FROM readings ORDER BY ts DESC LIMIT 10").all();
-    let fireDanger = false;
-    if (last10.length >= 10) {
-      fireDanger = last10.every(r => Number(r.fire) === 1);
+    const now = Date.now();
+    const MAX_AGE = 60 * 1000; // 60 segundos de validade
+
+    // 2. Função auxiliar para buscar o valor mais recente não-nulo de uma coluna
+    const getLatestValid = (col) => {
+      const row = db.prepare(`SELECT ${col}, ts FROM readings WHERE ${col} IS NOT NULL ORDER BY ts DESC LIMIT 1`).get();
+      if (row && (now - new Date(row.ts).getTime() < MAX_AGE)) {
+        return row[col];
+      }
+      return null; // Dado expirado ou inexistente
+    };
+
+    // 3. Construir objeto de resposta combinando as fontes mais recentes
+    const response = {
+      ts: last.ts, // Mantém o timestamp da última atividade geral
+      temp: getLatestValid('temp'),
+      hum: getLatestValid('hum'),
+      aqi: getLatestValid('aqi'),
+      fire: getLatestValid('fire'),
+      fireCount: 0
+    };
+
+    // 4. Calcular fireCount (Soma das últimas 20 leituras, em vez de streak consecutiva)
+    if (response.fire !== null) {
+      const recent = db.prepare("SELECT fire FROM readings WHERE fire IS NOT NULL ORDER BY ts DESC LIMIT 20").all();
+      
+      // DEBUG: Ver o que está a vir da BD
+      console.log("[DEBUG] Recent fire readings:", JSON.stringify(recent));
+
+      // Conta quantos '1' existem nas últimas 20 amostras
+      response.fireCount = recent.filter(r => Number(r.fire) === 1).length;
     }
 
-    res.json({ ...last, fireDanger });
+    res.json(response);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Erro ao obter última leitura" });

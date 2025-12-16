@@ -163,6 +163,7 @@ export default function Dashboard() {
           hum: Number(data.hum ?? data.humidity ?? NaN),
           aqi: Number(data.aqi ?? data.airQuality ?? NaN),
           fire: data.fire,
+          fireCount: data.fireCount,
           fireDanger: data.fireDanger,
           ts: now.getTime(),
         };
@@ -301,8 +302,8 @@ export default function Dashboard() {
   const isOffline = useMemo(() => {
     if (usingDemo) return false;
     if (!reading?.ts) return true;
-    // Se os dados têm mais de 15 segundos, consideramos offline
-    return currentTime - reading.ts > 15000;
+    // Se os dados têm mais de 60 segundos, consideramos offline (aumentado para evitar flickering)
+    return currentTime - reading.ts > 60000;
   }, [reading, usingDemo, currentTime]);
 
   return (
@@ -349,11 +350,11 @@ export default function Dashboard() {
         <div className="col-lg-3">
           <SensorCard
             title="Risco de Incêndio"
-            value={isOffline ? "N/A" : (reading?.fireDanger ? "Alto" : "Baixo")}
+            value={isOffline || reading?.fire == null ? "N/A" : (reading?.fireCount >= 5 ? `Elevado (${reading.fireCount})` : reading?.fireCount >= 1 ? `Moderado (${reading.fireCount})` : `Baixo (${reading.fireCount})`)}
             unit=""
-            status={isOffline ? "Desligado" : (reading?.fire === 1 ? "Fogo detetado (Câmara)" : "Sem deteção (Câmara)")}
+            status={isOffline || reading?.fire == null ? "Sem deteção de câmara" : (reading?.fireCount >= 1 ? "Fogo detetado" : "Monitorização ativa")}
             icon={<FaFire />}
-            color={isOffline ? "text-secondary" : "text-danger"}
+            color={isOffline || reading?.fire == null ? "text-secondary" : (reading?.fireCount >= 5 ? "text-danger" : reading?.fireCount >= 1 ? "text-warning" : "text-success")}
           />
         </div>
       </div>
