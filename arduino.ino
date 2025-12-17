@@ -8,9 +8,6 @@
 #define DHTTYPE DHT11
 #define MQ135_PIN A4
 
-int ledVermelho = 11;
-int ledAmarelo = 12;
-int ledVerde = 13;
 
 String estado = "seguro";
 String estadoDht = "seguro";
@@ -32,9 +29,6 @@ void setup() {
   dht.begin();
   delay(1500); // tempo para o DHT22 estabilizar
 
-  pinMode(ledVermelho, OUTPUT);
-  pinMode(ledAmarelo, OUTPUT);
-  pinMode(ledVerde, OUTPUT);
   pinMode(MQ135_PIN, INPUT);
 
   Serial.println("Calibrar MQ135 (aguardar 5 segundos com ar limpo)...");
@@ -61,7 +55,7 @@ void loop() {
   humidityVal = dht.readHumidity();
   tempValC = dht.readTemperature();
 
-  if (isnan(humidityVal) || isnan(tempValC)) {
+  if (isnan(humidityVal) || isnan(tempValC)) { // Leitura não está a servir para alerta por questões de variação de ambiente
     Serial.println("Falha ao ler DHT22! Ignorando leitura...");
     delay(2000);
     return;
@@ -70,11 +64,11 @@ void loop() {
   heatIndexC = dht.computeHeatIndex(tempValC, humidityVal, false);
 
   // ======== MQ135 / CO2 ========
-  gasValue = analogRead(MQ135_PIN);
-  int delta = gasValue - baseValue;
-  if (delta < 0) delta = 0;
+  gasValue = analogRead(MQ135_PIN); // Lê o valor analógico do sensor (0-1023, dependendo da tensão no pino).
+  int delta = gasValue - baseValue;  // Calcula a diferença entre a leitura atual e o valor base calibrado.
+  if (delta < 0) delta = 0; // Garante que delta não seja negativo (evita valores inválidos).
 
-  float co2ppm = 400 + (delta * 3.5);
+  float co2ppm = 400 + (delta * 3.5); // Estima a concentração de CO₂ em ppm
 
   // ======== SERIAL DEBUG ========
   Serial.print("Temp: ");
@@ -96,24 +90,6 @@ void loop() {
     estado = "alerta";
   else
     estado = "seguro";
-
-  // ======== LEDS ========
-  if (estado == "seguro") {
-    digitalWrite(ledVerde, HIGH);
-    digitalWrite(ledAmarelo, LOW);
-    digitalWrite(ledVermelho, LOW);
-  } else if (estado == "alerta") {
-    digitalWrite(ledVerde, LOW);
-    digitalWrite(ledAmarelo, HIGH);
-    digitalWrite(ledVermelho, LOW);
-  } else { 
-    // PERIGO
-    digitalWrite(ledVerde, LOW);
-    digitalWrite(ledAmarelo, LOW);
-    digitalWrite(ledVermelho, HIGH);
-    delay(150);
-    digitalWrite(ledVermelho, LOW);
-  }
 
   delay(2000); 
 }
