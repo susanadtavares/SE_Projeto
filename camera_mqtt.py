@@ -8,7 +8,7 @@ import paho.mqtt.client as mqtt
 import json
 
 # --- CONFIGURAÇÃO MQTT ---
-MQTT_BROKER = "172.20.10.3"
+MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
 MQTT_TOPIC = "sala/ambiente"
 
@@ -98,15 +98,12 @@ while True:
         
         payload = {
             "fire": fire_detected,
-            "ts": int(time.time() * 1000),
-            "debug_id": "USER_TERMINAL_SCRIPT"
+            "ts": int(time.time() * 1000)
         }
         
         # Publicar apenas se houver fogo ou periodicamente (opcional)
         # Aqui publicamos sempre para manter o heartbeat, ou podes filtrar
-        payload_str = json.dumps(payload)
-        print(f"DEBUG: Sending Payload -> {payload_str}")
-        client.publish(MQTT_TOPIC, payload_str)
+        client.publish(MQTT_TOPIC, json.dumps(payload))
 
 
         # 5. Calcular FPS aproximado
